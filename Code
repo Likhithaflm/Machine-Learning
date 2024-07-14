@@ -1,0 +1,113 @@
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from flask import *
+
+app=Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template("index.html")
+
+@app.route('/about')
+def about():
+    return render_template("about.html")
+
+@app.route('/load',methods=["GET","POST"])
+def load():
+    global df, dataset
+    if request.method == "POST":
+        data = request.files['data']
+        df = pd.read_csv(data)
+        dataset = df.head(100)
+        msg = 'Data Loaded Successfully'
+        return render_template('load.html', msg=msg)
+    return render_template('load.html')
+
+@app.route('/preprocess', methods=['POST', 'GET'])
+def preprocess():
+    global x, y, x_train, x_test, y_train, y_test,  hvectorizer,df,data
+    if request.method == "POST":
+        size = int(request.form['split'])
+        size = size / 100
+        df=pd.read_csv(r'dataset.csv')
+        df.head()
+        from sklearn.preprocessing import LabelEncoder
+        le = LabelEncoder()
+        df['stabf']=le.fit_transform(df['stabf'])
+
+        #splitting
+        x=df.drop('stabf',axis=1)
+        y=df['stabf']
+
+        x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.3,random_state=42)
+
+        # describes info about train and test set
+        print("Number transactions X_train dataset: ", x_train.shape)
+        print("Number transactions y_train dataset: ", y_train.shape)
+        print("Number transactions X_test dataset: ", x_test.shape)
+        print("Number transactions y_test dataset: ", y_test.shape)
+
+    
+        print(x_train,x_test)
+
+        return render_template('preprocess.html', msg='Data Preprocessed and It Splits Successfully')
+    return render_template('preprocess.html')
+
+@app.route('/model', methods=["POST","GET"])
+def model():
+    if request.method=="POST":
+        global model
+        s=int(request.form['algo'])
+        if s==0:
+            return render_template('model.html',msg="Choose an algorithm")
+        elif s==2:
+            from sklearn.tree import DecisionTreeClassifier
+            dt = DecisionTreeClassifier()
+            dt.fit(x_train,y_train)
+            y_pred=dt.predict(x_test)
+            ac_dt=accuracy_score(y_pred,y_test)
+            ac_dt=ac_dt*100
+            msg="The accuracy obtained by Decision Tree Classifier is "+str(ac_dt) +str('%')
+            return render_template("model.html",msg=msg)
+        
+        
+
+@app.route('/prediction' , methods=["POST","GET"])
+def prediction():
+    if request.method=="POST":
+        f1=float(request.form['tau1'])
+        f2=float(request.form['tau2'])
+        f3=float(request.form['tau3'])
+        f4=float(request.form['tau4'])
+        f5=float(request.form['p1'])
+        f6=float(request.form['p2'])
+        f7=float(request.form['p3'])
+        f8=float(request.form['p3'])
+        f9=float(request.form['g1'])
+        f10=float(request.form['g2'])
+        f11=float(request.form['g3'])
+        f12=float(request.form['g4'])
+        f13=float(request.form['stab'])
+
+        lee=[f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13]
+        print(lee)
+
+        import pickle
+        from sklearn.tree import DecisionTreeClassifier
+        model=DecisionTreeClassifier()
+        model.fit(x_train,y_train)
+        result=model.predict([lee])
+        print(result)
+        if result == 0:
+            msg = 'The Smart-Grid has Stability'
+            return render_template('prediction.html', msg=msg)
+        elif result == 1:
+            msg = 'The Smart-Grid has No_Stability'
+            return render_template('prediction.html', msg=msg)
+    return render_template("prediction.html") 
+
+if __name__=="__main__":
+    app.run(debug="True",port=8000,host="0.0.0.0")
